@@ -26,7 +26,7 @@ export const AgentCard = ({ name, description, status, icon, className }: AgentC
   
   return (
     <div className={cn(
-      "agent-card relative overflow-hidden rounded-xl border-2 p-6",
+      "agent-card relative overflow-hidden rounded-xl border-2 p-6 animate-fade-in",
       "bg-gradient-to-br from-card/50 to-card shadow-card",
       colorMap[icon],
       className
@@ -45,15 +45,21 @@ export const AgentCard = ({ name, description, status, icon, className }: AgentC
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold text-foreground">{name}</h3>
             {status === "complete" && (
-              <div className="flex items-center gap-1.5 text-status-complete">
-                <CheckCircle2 className="h-5 w-5" />
+              <div className="flex items-center gap-1.5 text-status-complete animate-scale-in">
+                <CheckCircle2 className="h-5 w-5 animate-pulse" />
                 <span className="text-sm font-medium">Complete</span>
               </div>
             )}
             {status === "progress" && (
               <div className="flex items-center gap-1.5 text-status-progress">
                 <div className="h-2 w-2 rounded-full bg-status-progress animate-pulse-glow" />
-                <span className="text-sm font-medium">In Progress</span>
+                <span className="text-sm font-medium">Analyzing...</span>
+              </div>
+            )}
+            {status === "pending" && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                <span className="text-sm font-medium">Pending</span>
               </div>
             )}
           </div>

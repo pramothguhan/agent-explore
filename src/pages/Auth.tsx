@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Sparkles, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,17 +13,32 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    
     toast({
-      title: isLogin ? "Welcome back!" : "Account created!",
-      description: isLogin ? "You've successfully logged in." : "You can now access ResearchAgent.",
+      title: isLogin ? "Signing in..." : "Creating account...",
+      description: "Please wait a moment",
     });
-    navigate("/");
+
+    // Simulate authentication
+    setTimeout(() => {
+      toast({
+        title: isLogin ? "Welcome back!" : "Account created!",
+        description: isLogin ? "You've successfully logged in." : "You can now access ResearchAgent.",
+      });
+      navigate("/");
+    }, 1500);
   };
+
+  if (isLoading) {
+    return <PageLoadingSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background grid lg:grid-cols-2">

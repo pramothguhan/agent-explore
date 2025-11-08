@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileUp, Search, FolderPlus, FolderOpen, ArrowLeft } from "lucide-react";
+import { FileUp, Search, FolderPlus, FolderOpen, ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PaperSkeleton } from "@/components/PaperSkeleton";
 
 interface PaperUploadModalProps {
   open: boolean;
@@ -27,6 +28,8 @@ export const PaperUploadModal = ({ open, onOpenChange }: PaperUploadModalProps) 
   const [selectedCategory, setSelectedCategory] = useState("");
   const [arxivTopic, setArxivTopic] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   const handleCategoryTypeSelect = (type: "new" | "existing") => {
@@ -68,6 +71,7 @@ export const PaperUploadModal = ({ open, onOpenChange }: PaperUploadModalProps) 
       return;
     }
     
+    setIsFetching(true);
     toast({
       title: "Fetching papers...",
       description: `Searching arXiv for papers about "${arxivTopic}"`,
@@ -75,13 +79,14 @@ export const PaperUploadModal = ({ open, onOpenChange }: PaperUploadModalProps) 
 
     // Mock: In production, call backend API
     setTimeout(() => {
+      setIsFetching(false);
       toast({
         title: "Papers added!",
         description: `Added 15 papers to ${category}`,
       });
       resetForm();
       onOpenChange(false);
-    }, 2000);
+    }, 3000);
   };
 
   const handleFileUpload = () => {
@@ -104,6 +109,7 @@ export const PaperUploadModal = ({ open, onOpenChange }: PaperUploadModalProps) 
       return;
     }
     
+    setIsUploading(true);
     toast({
       title: "Uploading paper...",
       description: `Processing ${file.name}`,
@@ -111,6 +117,7 @@ export const PaperUploadModal = ({ open, onOpenChange }: PaperUploadModalProps) 
 
     // Mock: In production, upload to backend
     setTimeout(() => {
+      setIsUploading(false);
       toast({
         title: "Paper uploaded!",
         description: `Added to ${category}`,
@@ -213,57 +220,83 @@ export const PaperUploadModal = ({ open, onOpenChange }: PaperUploadModalProps) 
               </TabsList>
               
               <TabsContent value="arxiv" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="topic">Research Topic or Keywords</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="topic"
-                      placeholder="e.g., transformer neural networks, climate modeling"
-                      value={arxivTopic}
-                      onChange={(e) => setArxivTopic(e.target.value)}
-                      className="pl-10"
-                    />
+                {isFetching ? (
+                  <div className="space-y-4">
+                    <div className="text-center space-y-2 py-4">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-gaming-blue" />
+                      <p className="text-sm font-medium text-gaming-blue">Fetching papers from arXiv...</p>
+                    </div>
+                    <div className="space-y-4">
+                      <PaperSkeleton />
+                      <PaperSkeleton />
+                    </div>
                   </div>
-                </div>
-                
-                <p className="text-sm text-muted-foreground">
-                  We'll fetch the top 10-20 papers from arXiv matching your topic and add them to {categoryType === "new" ? "your new category" : "the selected category"}.
-                </p>
-                
-                <Button onClick={handleArxivFetch} className="w-full">
-                  Fetch Papers from arXiv
-                </Button>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="topic">Research Topic or Keywords</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="topic"
+                          placeholder="e.g., transformer neural networks, climate modeling"
+                          value={arxivTopic}
+                          onChange={(e) => setArxivTopic(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground">
+                      We'll fetch the top 10-20 papers from arXiv matching your topic and add them to {categoryType === "new" ? "your new category" : "the selected category"}.
+                    </p>
+                    
+                    <Button onClick={handleArxivFetch} className="w-full">
+                      Fetch Papers from arXiv
+                    </Button>
+                  </>
+                )}
               </TabsContent>
               
               <TabsContent value="manual" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="file">Upload PDF</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                    <FileUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <Input
-                      id="file"
-                      type="file"
-                      accept=".pdf"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                    />
-                    <Label htmlFor="file" className="cursor-pointer">
-                      <p className="text-sm font-medium mb-1">
-                        {file ? file.name : "Click to upload or drag and drop"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">PDF files only</p>
-                    </Label>
+                {isUploading ? (
+                  <div className="space-y-4">
+                    <div className="text-center space-y-2 py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-gaming-green" />
+                      <p className="text-sm font-medium text-gaming-green">Processing your paper...</p>
+                    </div>
                   </div>
-                </div>
-                
-                <p className="text-sm text-muted-foreground">
-                  Upload a research paper PDF and assign it to {categoryType === "new" ? "your new category" : "the selected category"}.
-                </p>
-                
-                <Button onClick={handleFileUpload} className="w-full">
-                  Upload Paper
-                </Button>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="file">Upload PDF</Label>
+                      <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                        <FileUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <Input
+                          id="file"
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                        <Label htmlFor="file" className="cursor-pointer">
+                          <p className="text-sm font-medium mb-1">
+                            {file ? file.name : "Click to upload or drag and drop"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">PDF files only</p>
+                        </Label>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground">
+                      Upload a research paper PDF and assign it to {categoryType === "new" ? "your new category" : "the selected category"}.
+                    </p>
+                    
+                    <Button onClick={handleFileUpload} className="w-full">
+                      Upload Paper
+                    </Button>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           </>

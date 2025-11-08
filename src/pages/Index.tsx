@@ -4,7 +4,10 @@ import { CategoryRow } from "@/components/CategoryRow";
 import { AgentConversation } from "@/components/AgentConversation";
 import { PaperUploadModal } from "@/components/PaperUploadModal";
 import { PaperDetailModal } from "@/components/PaperDetailModal";
-import { useState } from "react";
+import { CategorySkeleton } from "@/components/PaperSkeleton";
+import { AgentLoadingList } from "@/components/AgentSkeleton";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -90,9 +93,26 @@ const Index = () => {
   const [paperDetailOpen, setPaperDetailOpen] = useState(false);
   const [selectedPaper, setSelectedPaper] = useState<typeof mockPapers[0] | null>(null);
   const [chatMessage, setChatMessage] = useState("");
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Simulate initial page load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPageLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleStartAnalysis = () => {
     setAnalysisOpen(true);
+    setIsAnalyzing(true);
+    
+    // Simulate analysis completion
+    setTimeout(() => {
+      setIsAnalyzing(false);
+    }, 5000);
   };
 
   const handlePaperClick = (id: string) => {
@@ -109,6 +129,10 @@ const Index = () => {
       setChatMessage("");
     }
   };
+
+  if (isPageLoading) {
+    return <PageLoadingSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -128,15 +152,23 @@ const Index = () => {
 
         {/* Categories with Papers */}
         <section className="space-y-8">
-          {categories.map((category, index) => (
-            <CategoryRow
-              key={category}
-              title={category}
-              papers={mockPapers}
-              onStartAnalysis={handleStartAnalysis}
-              onPaperClick={handlePaperClick}
-            />
-          ))}
+          {isCategoriesLoading ? (
+            <>
+              <CategorySkeleton />
+              <CategorySkeleton />
+              <CategorySkeleton />
+            </>
+          ) : (
+            categories.map((category, index) => (
+              <CategoryRow
+                key={category}
+                title={category}
+                papers={mockPapers}
+                onStartAnalysis={handleStartAnalysis}
+                onPaperClick={handlePaperClick}
+              />
+            ))
+          )}
         </section>
       </main>
 
@@ -156,26 +188,30 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="agents" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <AgentCard
-                  name="Researcher"
-                  description="Analyzes papers and extracts key findings"
-                  status="complete"
-                  icon="researcher"
-                />
-                <AgentCard
-                  name="Critic"
-                  description="Questions assumptions and identifies gaps"
-                  status="complete"
-                  icon="critic"
-                />
-                <AgentCard
-                  name="Synthesizer"
-                  description="Generates collective insights"
-                  status="complete"
-                  icon="synthesizer"
-                />
-              </div>
+              {isAnalyzing ? (
+                <AgentLoadingList />
+              ) : (
+                <div className="space-y-4">
+                  <AgentCard
+                    name="Researcher"
+                    description="Analyzes papers and extracts key findings"
+                    status="complete"
+                    icon="researcher"
+                  />
+                  <AgentCard
+                    name="Critic"
+                    description="Questions assumptions and identifies gaps"
+                    status="complete"
+                    icon="critic"
+                  />
+                  <AgentCard
+                    name="Synthesizer"
+                    description="Generates collective insights"
+                    status="complete"
+                    icon="synthesizer"
+                  />
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="conversation" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
