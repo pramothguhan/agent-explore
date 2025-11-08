@@ -56,6 +56,11 @@ export default {
           complete: "hsl(var(--status-complete))",
           progress: "hsl(var(--status-progress))",
         },
+        special: {
+          peach: "hsl(var(--background-peach))",
+          lavender: "hsl(var(--background-lavender))",
+          yellow: "hsl(var(--background-yellow))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -137,6 +142,11 @@ export default {
       boxShadow: {
         card: "var(--shadow-card)",
         elevated: "var(--shadow-elevated)",
+        hover: "var(--shadow-hover)",
+      },
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['Playfair Display', 'Georgia', 'serif'],
       },
     },
   },

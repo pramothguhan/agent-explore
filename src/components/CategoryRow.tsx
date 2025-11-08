@@ -33,11 +33,12 @@ export const CategoryRow = ({ title, papers, onStartAnalysis, onPaperClick }: Ca
     <div className="space-y-4 animate-fade-in">
       {/* Category Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+        <h2 className="text-3xl font-serif font-semibold text-foreground">{title}</h2>
         {onStartAnalysis && (
           <Button
             onClick={onStartAnalysis}
-            className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            variant="outline"
+            className="gap-2 border-2 shadow-none"
           >
             <Play className="h-4 w-4" />
             Start Analysis

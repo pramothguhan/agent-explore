@@ -24,9 +24,9 @@ export const PaperCard = ({
     <div
       onClick={onClick}
       className={cn(
-        "paper-card group relative h-[320px] cursor-pointer overflow-hidden rounded-md",
-        "bg-card border border-border/50 shadow-card",
-        "hover:border-primary hover:shadow-hover hover:scale-105",
+        "paper-card group relative h-[320px] cursor-pointer overflow-hidden rounded-lg",
+        "bg-card border-2 border-border shadow-card",
+        "hover:border-primary hover:shadow-hover hover:scale-[1.02]",
         "transition-all duration-300",
         className
       )}
@@ -45,7 +45,7 @@ export const PaperCard = ({
 
       {/* Content */}
       <div className="p-4 space-y-2">
-        <h3 className="font-semibold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+        <h3 className="font-serif font-semibold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
           {title}
         </h3>
         
@@ -67,10 +67,10 @@ export const PaperCard = ({
       </div>
 
       {/* Netflix-style preview overlay on hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end p-4">
+      <div className="absolute inset-0 bg-foreground opacity-0 group-hover:opacity-95 transition-all duration-300 flex items-end p-4">
         <div className="w-full space-y-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-          <h4 className="text-sm font-semibold text-white line-clamp-1">{title}</h4>
-          <p className="text-xs text-white/80 line-clamp-2">{abstract}</p>
+          <h4 className="text-sm font-serif font-semibold text-background line-clamp-1">{title}</h4>
+          <p className="text-xs text-background/70 line-clamp-2">{abstract}</p>
         </div>
       </div>
     </div>

@@ -116,11 +116,11 @@ const Index = () => {
 
       <main className="container px-6 py-8 space-y-12">
         {/* Hero Section */}
-        <section className="space-y-4 animate-fade-in">
-          <h1 className="text-5xl font-bold text-foreground">
+        <section className="space-y-6 animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-serif font-semibold text-foreground leading-tight">
             Multi-Agent Research Platform
           </h1>
-          <p className="text-lg text-muted-foreground max-w-3xl">
+          <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">
             Leverage AI agents to analyze research papers, identify patterns, and generate collective insights.
             Browse curated categories and start your analysis journey.
           </p>
