@@ -2,7 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Search, Plus, User, Sparkles } from "lucide-react";
 import { NavLink } from "./NavLink";
 
-export const Navigation = () => {
+interface NavigationProps {
+  onAddPapers?: () => void;
+}
+
+export const Navigation = ({ onAddPapers }: NavigationProps) => {
   return (
     <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-16 items-center justify-between px-6">
@@ -47,13 +51,19 @@ export const Navigation = () => {
             <Search className="h-5 w-5" />
           </Button>
           
-          <Button size="icon" className="rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90">
+          <Button 
+            onClick={onAddPapers}
+            size="icon" 
+            className="rounded-full bg-primary hover:bg-primary/90"
+          >
             <Plus className="h-5 w-5" />
           </Button>
           
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <User className="h-5 w-5" />
-          </Button>
+          <NavLink to="/auth">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <User className="h-5 w-5" />
+            </Button>
+          </NavLink>
         </div>
       </div>
     </nav>

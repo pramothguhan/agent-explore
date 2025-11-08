@@ -24,22 +24,23 @@ export const PaperCard = ({
     <div
       onClick={onClick}
       className={cn(
-        "paper-card group relative h-[320px] cursor-pointer overflow-hidden rounded-lg",
-        "bg-card border border-border shadow-card",
-        "hover:border-primary/50",
+        "paper-card group relative h-[320px] cursor-pointer overflow-hidden rounded-md",
+        "bg-card border border-border/50 shadow-card",
+        "hover:border-primary hover:shadow-hover hover:scale-105",
+        "transition-all duration-300",
         className
       )}
     >
       {/* Thumbnail/Icon */}
-      <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
+      <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary/10 to-accent/10">
         {thumbnail ? (
-          <img src={thumbnail} alt={title} className="h-full w-full object-cover" />
+          <img src={thumbnail} alt={title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <FileText className="h-16 w-16 text-primary/40" />
+            <FileText className="h-16 w-16 text-muted-foreground/40" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
       </div>
 
       {/* Content */}
@@ -59,14 +60,19 @@ export const PaperCard = ({
         </div>
         
         {abstract && (
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             {abstract}
           </p>
         )}
       </div>
 
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      {/* Netflix-style preview overlay on hover */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end p-4">
+        <div className="w-full space-y-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+          <h4 className="text-sm font-semibold text-white line-clamp-1">{title}</h4>
+          <p className="text-xs text-white/80 line-clamp-2">{abstract}</p>
+        </div>
+      </div>
     </div>
   );
 };

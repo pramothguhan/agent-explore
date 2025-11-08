@@ -2,6 +2,8 @@ import { Navigation } from "@/components/Navigation";
 import { AgentCard } from "@/components/AgentCard";
 import { CategoryRow } from "@/components/CategoryRow";
 import { AgentConversation } from "@/components/AgentConversation";
+import { PaperUploadModal } from "@/components/PaperUploadModal";
+import { PaperDetailModal } from "@/components/PaperDetailModal";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,10 +86,21 @@ const categories = [
 
 const Index = () => {
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [paperDetailOpen, setPaperDetailOpen] = useState(false);
+  const [selectedPaper, setSelectedPaper] = useState<typeof mockPapers[0] | null>(null);
   const [chatMessage, setChatMessage] = useState("");
 
   const handleStartAnalysis = () => {
     setAnalysisOpen(true);
+  };
+
+  const handlePaperClick = (id: string) => {
+    const paper = mockPapers.find(p => p.id === id);
+    if (paper) {
+      setSelectedPaper(paper);
+      setPaperDetailOpen(true);
+    }
   };
 
   const handleSendMessage = () => {
@@ -99,40 +112,18 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
+      <Navigation onAddPapers={() => setUploadOpen(true)} />
 
       <main className="container px-6 py-8 space-y-12">
         {/* Hero Section */}
         <section className="space-y-4 animate-fade-in">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-agent-synthesizer bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold text-foreground">
             Multi-Agent Research Platform
           </h1>
           <p className="text-lg text-muted-foreground max-w-3xl">
             Leverage AI agents to analyze research papers, identify patterns, and generate collective insights.
             Browse curated categories and start your analysis journey.
           </p>
-        </section>
-
-        {/* Agent Overview */}
-        <section className="grid gap-4 md:grid-cols-3">
-          <AgentCard
-            name="Researcher"
-            description="Analyzes papers and extracts key findings"
-            status="complete"
-            icon="researcher"
-          />
-          <AgentCard
-            name="Critic"
-            description="Questions assumptions and identifies gaps"
-            status="complete"
-            icon="critic"
-          />
-          <AgentCard
-            name="Synthesizer"
-            description="Generates collective insights"
-            status="complete"
-            icon="synthesizer"
-          />
         </section>
 
         {/* Categories with Papers */}
@@ -143,7 +134,7 @@ const Index = () => {
               title={category}
               papers={mockPapers}
               onStartAnalysis={handleStartAnalysis}
-              onPaperClick={(id) => console.log("Paper clicked:", id)}
+              onPaperClick={handlePaperClick}
             />
           ))}
         </section>
@@ -156,12 +147,36 @@ const Index = () => {
             <DialogTitle className="text-2xl">Agent Analysis</DialogTitle>
           </DialogHeader>
 
-          <Tabs defaultValue="conversation" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="conversation">Agent Conversation</TabsTrigger>
-              <TabsTrigger value="insights">Collective Insights</TabsTrigger>
-              <TabsTrigger value="chat">Interactive Chat</TabsTrigger>
+          <Tabs defaultValue="agents" className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="agents">Agents</TabsTrigger>
+              <TabsTrigger value="conversation">Conversation</TabsTrigger>
+              <TabsTrigger value="insights">Insights</TabsTrigger>
+              <TabsTrigger value="chat">Chat</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="agents" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <AgentCard
+                  name="Researcher"
+                  description="Analyzes papers and extracts key findings"
+                  status="complete"
+                  icon="researcher"
+                />
+                <AgentCard
+                  name="Critic"
+                  description="Questions assumptions and identifies gaps"
+                  status="complete"
+                  icon="critic"
+                />
+                <AgentCard
+                  name="Synthesizer"
+                  description="Generates collective insights"
+                  status="complete"
+                  icon="synthesizer"
+                />
+              </div>
+            </TabsContent>
 
             <TabsContent value="conversation" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
               <AgentConversation messages={mockMessages} />
@@ -226,6 +241,17 @@ const Index = () => {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Paper Upload Modal */}
+      <PaperUploadModal open={uploadOpen} onOpenChange={setUploadOpen} />
+
+      {/* Paper Detail Modal */}
+      <PaperDetailModal 
+        open={paperDetailOpen} 
+        onOpenChange={setPaperDetailOpen}
+        paper={selectedPaper}
+        onStartAnalysis={handleStartAnalysis}
+      />
     </div>
   );
 };
