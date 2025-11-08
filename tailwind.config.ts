@@ -52,6 +52,14 @@ export default {
           critic: "hsl(var(--agent-critic))",
           synthesizer: "hsl(var(--agent-synthesizer))",
         },
+        gaming: {
+          purple: "hsl(var(--gaming-purple))",
+          blue: "hsl(var(--gaming-blue))",
+          cyan: "hsl(var(--gaming-cyan))",
+          orange: "hsl(var(--gaming-orange))",
+          green: "hsl(var(--gaming-green))",
+          yellow: "hsl(var(--gaming-yellow))",
+        },
         status: {
           complete: "hsl(var(--status-complete))",
           progress: "hsl(var(--status-progress))",

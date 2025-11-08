@@ -24,7 +24,7 @@ export const PaperCard = ({
     <div
       onClick={onClick}
       className={cn(
-        "paper-card group relative h-[320px] cursor-pointer overflow-hidden rounded-lg",
+        "paper-card group/card relative h-[320px] cursor-pointer overflow-hidden rounded-lg",
         "bg-card border-2 border-border shadow-card",
         "hover:border-primary hover:shadow-hover hover:scale-[1.02]",
         "transition-all duration-300",
@@ -34,7 +34,7 @@ export const PaperCard = ({
       {/* Thumbnail/Icon */}
       <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary/10 to-accent/10">
         {thumbnail ? (
-          <img src={thumbnail} alt={title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" />
+          <img src={thumbnail} alt={title} className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-110" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <FileText className="h-16 w-16 text-muted-foreground/40" />
@@ -45,7 +45,7 @@ export const PaperCard = ({
 
       {/* Content */}
       <div className="p-4 space-y-2">
-        <h3 className="font-serif font-semibold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+        <h3 className="font-serif font-semibold text-foreground line-clamp-2 leading-tight group-hover/card:text-primary transition-colors">
           {title}
         </h3>
         
@@ -60,15 +60,15 @@ export const PaperCard = ({
         </div>
         
         {abstract && (
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
             {abstract}
           </p>
         )}
       </div>
 
       {/* Netflix-style preview overlay on hover */}
-      <div className="absolute inset-0 bg-foreground opacity-0 group-hover:opacity-95 transition-all duration-300 flex items-end p-4">
-        <div className="w-full space-y-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+      <div className="absolute inset-0 bg-foreground opacity-0 group-hover/card:opacity-95 transition-all duration-300 flex items-end p-4">
+        <div className="w-full space-y-2 transform translate-y-4 group-hover/card:translate-y-0 transition-transform duration-300">
           <h4 className="text-sm font-serif font-semibold text-background line-clamp-1">{title}</h4>
           <p className="text-xs text-background/70 line-clamp-2">{abstract}</p>
         </div>

@@ -47,11 +47,11 @@ export const CategoryRow = ({ title, papers, onStartAnalysis, onPaperClick }: Ca
       </div>
 
       {/* Papers Carousel */}
-      <div className="relative group">
+      <div className="relative group/carousel">
         {/* Navigation Buttons */}
         <button
           onClick={() => scroll("left")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-full w-12 bg-gradient-to-r from-background to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-start"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-full w-12 bg-gradient-to-r from-background to-transparent opacity-0 group-hover/carousel:opacity-100 transition-opacity flex items-center justify-start"
         >
           <div className="h-10 w-10 rounded-full bg-card/80 hover:bg-card flex items-center justify-center shadow-lg">
             <ChevronLeft className="h-6 w-6" />
@@ -60,7 +60,7 @@ export const CategoryRow = ({ title, papers, onStartAnalysis, onPaperClick }: Ca
 
         <button
           onClick={() => scroll("right")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-full w-12 bg-gradient-to-l from-background to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-full w-12 bg-gradient-to-l from-background to-transparent opacity-0 group-hover/carousel:opacity-100 transition-opacity flex items-center justify-end"
         >
           <div className="h-10 w-10 rounded-full bg-card/80 hover:bg-card flex items-center justify-center shadow-lg">
             <ChevronRight className="h-6 w-6" />

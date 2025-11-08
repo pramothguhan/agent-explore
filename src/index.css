@@ -47,6 +47,14 @@ All colors MUST be HSL.
     --status-complete: 142 71% 45%;
     --status-progress: 45 93% 47%;
     
+    /* Gaming platform colors - Vibrant palette */
+    --gaming-purple: 280 80% 65%;
+    --gaming-blue: 217 91% 60%;
+    --gaming-cyan: 189 94% 43%;
+    --gaming-orange: 28 90% 60%;
+    --gaming-green: 142 71% 45%;
+    --gaming-yellow: 45 93% 60%;
+    
     /* Special backgrounds */
     --background-peach: 20 70% 88%;
     --background-lavender: 250 50% 88%;
