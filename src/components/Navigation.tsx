@@ -1,12 +1,22 @@
 import { Button } from "@/components/ui/button";
-import { Search, Plus, User, Sparkles } from "lucide-react";
+import { Upload, Sparkles, LogOut } from "lucide-react";
 import { NavLink } from "./NavLink";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface NavigationProps {
   onAddPapers?: () => void;
 }
 
 export const Navigation = ({ onAddPapers }: NavigationProps) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/auth");
+  };
+
   return (
     <nav className="sticky top-0 z-50 border-b-2 border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
       <div className="container flex h-16 items-center justify-between px-6">
@@ -46,24 +56,30 @@ export const Navigation = ({ onAddPapers }: NavigationProps) => {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted">
-            <Search className="h-5 w-5" />
-          </Button>
-          
-          <Button 
+        <div className="flex items-center gap-4">
+          {user && (
+            <span className="text-sm text-muted-foreground hidden md:block">
+              {user.name}
+            </span>
+          )}
+          <Button
             onClick={onAddPapers}
-            size="icon" 
-            className="rounded-full shadow-none"
+            variant="default"
+            size="sm"
+            className="gap-2 shadow-none"
           >
-            <Plus className="h-5 w-5" />
+            <Upload className="h-4 w-4" />
+            Add Papers
           </Button>
-          
-          <NavLink to="/auth">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted">
-              <User className="h-5 w-5" />
-            </Button>
-          </NavLink>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </div>
     </nav>

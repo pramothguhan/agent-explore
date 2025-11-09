@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Eye, EyeOff } from "lucide-react";
+import { Sparkles, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { loginSchema, signupSchema } from "@/lib/validators";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,26 +17,62 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
+  
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, signup, isAuthenticated } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    setApiError("");
     setIsLoading(true);
-    
-    toast({
-      title: isLogin ? "Signing in..." : "Creating account...",
-      description: "Please wait a moment",
-    });
 
-    // Simulate authentication
-    setTimeout(() => {
-      toast({
-        title: isLogin ? "Welcome back!" : "Account created!",
-        description: isLogin ? "You've successfully logged in." : "You can now access ResearchAgent.",
-      });
-      navigate("/");
-    }, 1500);
+    try {
+      if (isLogin) {
+        // Validate login input
+        const validatedData = loginSchema.parse({ email, password });
+        await login(validatedData.email, validatedData.password);
+        navigate("/");
+      } else {
+        // Validate signup input
+        const validatedData = signupSchema.parse({ name, email, password });
+        await signup(validatedData.email, validatedData.password, validatedData.name);
+        navigate("/");
+      }
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        // Zod validation errors
+        const fieldErrors: Record<string, string> = {};
+        error.issues?.forEach((err: any) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+      } else {
+        // API errors
+        const errorMessage = error.message || "An error occurred. Please try again.";
+        setApiError(errorMessage);
+        
+        toast({
+          title: isLogin ? "Login failed" : "Signup failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -67,6 +106,14 @@ export default function Auth() {
             </p>
           </div>
 
+          {/* API Error Alert */}
+          {apiError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{apiError}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
@@ -79,10 +126,20 @@ export default function Auth() {
                   type="text"
                   placeholder="John Doe"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-12 border-2 border-border focus:border-primary"
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (errors.name) {
+                      setErrors({ ...errors, name: "" });
+                    }
+                  }}
+                  className={`h-12 border-2 focus:border-primary ${
+                    errors.name ? "border-destructive" : "border-border"
+                  }`}
                   required
                 />
+                {errors.name && (
+                  <p className="text-sm text-destructive">{errors.name}</p>
+                )}
               </div>
             )}
 
@@ -95,10 +152,20 @@ export default function Auth() {
                 type="email"
                 placeholder="name@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-12 border-2 border-border focus:border-primary"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) {
+                    setErrors({ ...errors, email: "" });
+                  }
+                }}
+                className={`h-12 border-2 focus:border-primary ${
+                  errors.email ? "border-destructive" : "border-border"
+                }`}
                 required
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -109,10 +176,17 @@ export default function Auth() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder={isLogin ? "Enter your password" : "Min 8 chars, 1 uppercase, 1 number"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 border-2 border-border focus:border-primary pr-10"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) {
+                      setErrors({ ...errors, password: "" });
+                    }
+                  }}
+                  className={`h-12 border-2 focus:border-primary pr-10 ${
+                    errors.password ? "border-destructive" : "border-border"
+                  }`}
                   required
                 />
                 <button
@@ -123,6 +197,9 @@ export default function Auth() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
 
             {isLogin && (
@@ -139,8 +216,9 @@ export default function Auth() {
             <Button 
               type="submit" 
               className="w-full h-12 text-base font-medium shadow-none"
+              disabled={isLoading}
             >
-              {isLogin ? "Sign In" : "Create Account"}
+              {isLoading ? "Please wait..." : (isLogin ? "Sign In" : "Create Account")}
             </Button>
 
             <div className="relative">

@@ -1,7 +1,25 @@
 // API client for FastAPI backend
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+// Get auth token from localStorage
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('auth_token');
+};
+
 // Types
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
 export interface Paper {
   id?: string;
   arxiv_id?: string;
@@ -51,16 +69,27 @@ export interface VectorSearchResult {
 // Helper function for API requests
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  requiresAuth: boolean = true
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers as Record<string, string>,
+  };
+
+  // Add auth token if required
+  if (requiresAuth) {
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -70,6 +99,48 @@ async function apiRequest<T>(
 
   return response.json();
 }
+
+// Authentication
+export const authApi = {
+  // Login
+  async login(email: string, password: string): Promise<AuthResponse> {
+    return apiRequest<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }, false);
+  },
+
+  // Signup
+  async signup(email: string, password: string, name: string): Promise<AuthResponse> {
+    return apiRequest<AuthResponse>('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+    }, false);
+  },
+
+  // Verify token
+  async verifyToken(token: string): Promise<User> {
+    return apiRequest<User>('/api/auth/verify', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    }, false);
+  },
+
+  // Get current user
+  async getCurrentUser(): Promise<User> {
+    return apiRequest<User>('/api/auth/me');
+  },
+
+  // Refresh token
+  async refreshToken(token: string): Promise<AuthResponse> {
+    return apiRequest<AuthResponse>('/api/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }, false);
+  },
+};
 
 // Session Management
 export const sessionApi = {
