@@ -17,41 +17,10 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { Rocket } from "lucide-react";
+import { sessionApi, paperApi, vectorStoreApi, analysisApi } from "@/lib/api";
+import type { Paper, Session, WorkflowResults } from "@/lib/api";
 
-// Types
-interface Paper {
-  id?: string;
-  arxiv_id?: string;
-  title: string;
-  authors: string[];
-  year?: string;
-  published?: string;
-  primary_category?: string;
-  abstract: string;
-  pdf_url?: string;
-  pdf_path?: string;
-}
-
-interface Session {
-  session_id: string;
-  topic: string;
-  papers_count: number;
-  chunks_count: number;
-  created_at: string;
-}
-
-interface WorkflowResults {
-  query: string;
-  conversation_history: Array<{
-    agent: string;
-    role: string;
-    message: string;
-    responding_to?: string;
-  }>;
-  insight_report?: string;
-  synthesis: string;
-  follow_up_questions: string[];
-}
+// Types imported from api.ts
 
 const Index = () => {
   const { toast } = useToast();
@@ -81,92 +50,129 @@ const Index = () => {
   const [temperature, setTemperature] = useState([0.7]);
   const [workflowType, setWorkflowType] = useState("standard");
 
-  // Simulate initial page load
+  // Load sessions on mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsPageLoading(false);
-      // TODO: Load sessions from API
-      // fetchSessions();
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    const loadSessions = async () => {
+      try {
+        const sessionsList = await sessionApi.list();
+        setSessions(sessionsList);
+      } catch (error) {
+        console.error('Failed to load sessions:', error);
+        toast({
+          title: "Warning",
+          description: "Could not connect to backend. Using demo mode.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsPageLoading(false);
+      }
+    };
+
+    loadSessions();
+  }, [toast]);
 
   // Handler functions
-  const handleSelectSession = (sessionId: string | null) => {
+  const handleSelectSession = async (sessionId: string | null) => {
     if (sessionId === null) {
       setCurrentSession(null);
       setPapers([]);
       setWorkflowResults(null);
+      setVectorStoreReady(false);
+      setVectorStoreChunks(0);
+      setPapersWithPdfs(0);
     } else {
-      // TODO: Load session from API
-      const session = sessions.find(s => s.session_id === sessionId);
-      if (session) {
+      try {
+        // Load session details
+        const session = await sessionApi.get(sessionId);
         setCurrentSession(session);
-        // TODO: Load papers for this session
+
+        // Load papers for this session
+        const sessionPapers = await sessionApi.getPapers(sessionId);
+        setPapers(sessionPapers);
+        setPapersWithPdfs(sessionPapers.filter(p => p.pdf_path).length);
+
+        // Check vector store status
+        const stats = await vectorStoreApi.getStats(sessionId);
+        setVectorStoreReady(stats.exists);
+        setVectorStoreChunks(stats.chunks_count);
+
+        // Load previous analysis results if available
+        const results = await analysisApi.getResults(sessionId);
+        if (results) {
+          setWorkflowResults(results);
+        }
+
+        toast({
+          title: "Session loaded",
+          description: `Loaded ${session.topic}`,
+        });
+      } catch (error) {
+        console.error('Failed to load session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load session details",
+          variant: "destructive",
+        });
       }
     }
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    // TODO: Call API to delete session
-    setSessions(sessions.filter(s => s.session_id !== sessionId));
-    if (currentSession?.session_id === sessionId) {
-      setCurrentSession(null);
-      setPapers([]);
+    try {
+      await sessionApi.delete(sessionId);
+      setSessions(sessions.filter(s => s.session_id !== sessionId));
+      
+      if (currentSession?.session_id === sessionId) {
+        setCurrentSession(null);
+        setPapers([]);
+        setWorkflowResults(null);
+      }
+      
+      toast({
+        title: "Session deleted",
+        description: "The research session has been removed",
+      });
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete session",
+        variant: "destructive",
+      });
     }
-    toast({
-      title: "Session deleted",
-      description: "The research session has been removed",
-    });
   };
 
   const handleSearch = async (query: string, maxPapers: number) => {
     setIsSearching(true);
     try {
-      // TODO: Call FastAPI endpoint /api/papers/fetch-arxiv
-      // const response = await fetch(`${API_BASE_URL}/api/papers/fetch-arxiv`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ query, max_results: maxPapers })
-      // });
-      // const data = await response.json();
-      
-      // Mock data for now
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const mockResults: Paper[] = Array(maxPapers).fill(null).map((_, i) => ({
-        id: `paper-${i}`,
-        arxiv_id: `2024.${String(i).padStart(5, '0')}`,
-        title: `Research Paper ${i + 1}: ${query}`,
-        authors: ['Author A', 'Author B'],
-        published: '2024-01-15',
-        primary_category: 'cs.AI',
-        abstract: `This paper explores ${query} using advanced methods...`,
-        pdf_url: `https://arxiv.org/pdf/2024.${String(i).padStart(5, '0')}`,
-      }));
-      
-      setPapers(mockResults);
-      
       // Create session if needed
-      if (!currentSession) {
-        const newSession: Session = {
-          session_id: `session-${Date.now()}`,
-          topic: query,
-          papers_count: mockResults.length,
-          chunks_count: 0,
-          created_at: new Date().toISOString(),
-        };
-        setSessions([...sessions, newSession]);
-        setCurrentSession(newSession);
+      let session = currentSession;
+      if (!session) {
+        session = await sessionApi.create(query);
+        setSessions([...sessions, session]);
+        setCurrentSession(session);
+      }
+
+      // Fetch papers from arXiv
+      const results = await paperApi.fetchFromArxiv(query, maxPapers, session.session_id);
+      setPapers(results);
+      
+      // Update session papers count
+      if (session) {
+        const updatedSession = { ...session, papers_count: results.length };
+        setCurrentSession(updatedSession);
+        setSessions(sessions.map(s => s.session_id === session.session_id ? updatedSession : s));
       }
       
       toast({
         title: "Papers found",
-        description: `Found ${mockResults.length} papers`,
+        description: `Found ${results.length} papers from arXiv`,
       });
     } catch (error) {
+      console.error('Search failed:', error);
       toast({
         title: "Search failed",
-        description: "Failed to search papers",
+        description: error instanceof Error ? error.message : "Failed to search papers",
         variant: "destructive",
       });
     } finally {
@@ -175,24 +181,35 @@ const Index = () => {
   };
 
   const handleDownloadPDFs = async () => {
+    if (!currentSession) return;
+
     setIsProcessing(true);
     setProgress(0);
     
     try {
-      // TODO: Call FastAPI endpoint to download PDFs
-      for (let i = 0; i < papers.length; i++) {
-        setStatusText(`Downloading ${i + 1}/${papers.length}: ${papers[i].title.slice(0, 40)}...`);
-        setProgress(((i + 1) / papers.length) * 100);
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      const result = await paperApi.downloadPDFs(
+        currentSession.session_id,
+        (current, total, status) => {
+          setStatusText(status);
+          setProgress((current / total) * 100);
+        }
+      );
       
-      // Update papers with pdf_path
-      setPapers(papers.map(p => ({ ...p, pdf_path: `/path/to/${p.arxiv_id}.pdf` })));
-      setPapersWithPdfs(papers.length);
+      // Reload papers to get updated pdf_path
+      const updatedPapers = await sessionApi.getPapers(currentSession.session_id);
+      setPapers(updatedPapers);
+      setPapersWithPdfs(updatedPapers.filter(p => p.pdf_path).length);
       
       toast({
         title: "PDFs downloaded",
-        description: `Downloaded ${papers.length} PDFs`,
+        description: `Downloaded ${result.downloaded} of ${papers.length} PDFs`,
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Failed to download PDFs",
+        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
@@ -202,21 +219,38 @@ const Index = () => {
   };
 
   const handleBuildVectorStore = async () => {
+    if (!currentSession) return;
+
     setIsProcessing(true);
     setProgress(0);
     
     try {
-      // TODO: Call FastAPI endpoint to build vector store
-      setStatusText("Processing PDFs and building embeddings...");
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      setProgress(100);
+      const result = await vectorStoreApi.build(
+        currentSession.session_id,
+        (current, total, status) => {
+          setStatusText(status);
+          setProgress((current / total) * 100);
+        }
+      );
       
       setVectorStoreReady(true);
-      setVectorStoreChunks(papers.length * 50); // Mock: ~50 chunks per paper
+      setVectorStoreChunks(result.chunks_count);
+      
+      // Update session
+      const updatedSession = { ...currentSession, chunks_count: result.chunks_count };
+      setCurrentSession(updatedSession);
+      setSessions(sessions.map(s => s.session_id === currentSession.session_id ? updatedSession : s));
       
       toast({
         title: "Vector store ready",
-        description: `Created ${papers.length * 50} searchable chunks`,
+        description: `Created ${result.chunks_count} searchable chunks with ${result.embedding_dim}-dim embeddings`,
+      });
+    } catch (error) {
+      console.error('Build failed:', error);
+      toast({
+        title: "Build failed",
+        description: error instanceof Error ? error.message : "Failed to build vector store",
+        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
@@ -226,19 +260,21 @@ const Index = () => {
   };
 
   const handleVectorQuery = async (query: string, k: number) => {
-    // TODO: Call FastAPI endpoint /api/vector-store/query
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return Array(k).fill(null).map((_, i) => ({
-      text: `Relevant passage ${i + 1} about "${query}"...`,
-      score: 0.9 - (i * 0.1),
-      meta: {
-        paper_title: papers[i % papers.length]?.title || 'Unknown',
-        position: Math.random(),
-        word_count: 150 + Math.floor(Math.random() * 100),
-        has_equations: Math.random() > 0.5,
-        has_citations: Math.random() > 0.7,
-      }
-    }));
+    if (!currentSession) {
+      throw new Error("No active session");
+    }
+
+    try {
+      return await vectorStoreApi.query(currentSession.session_id, query, k);
+    } catch (error) {
+      console.error('Query failed:', error);
+      toast({
+        title: "Query failed",
+        description: error instanceof Error ? error.message : "Failed to query vector store",
+        variant: "destructive",
+      });
+      return [];
+    }
   };
 
   const handleStartAnalysis = async () => {
@@ -253,52 +289,25 @@ const Index = () => {
 
     setIsAnalyzing(true);
     try {
-      // TODO: Call FastAPI endpoint /api/analysis/category
-      // const response = await fetch(`${API_BASE_URL}/api/analysis/category`, {
-      //   method: 'POST',
-      //   body: JSON.stringify({
-      //     query: currentSession.topic,
-      //     model,
-      //     temperature: temperature[0],
-      //     workflow_type: workflowType
-      //   })
-      // });
-      
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      const mockResults: WorkflowResults = {
+      const results = await analysisApi.startAnalysis({
+        sessionId: currentSession.session_id,
         query: currentSession.topic,
-        conversation_history: [
-          {
-            agent: "Researcher",
-            role: "Research Agent",
-            message: "Analyzed papers and found key patterns in the data...",
-          },
-          {
-            agent: "Critic",
-            role: "Critical Analyst",
-            message: "Identified several gaps in the methodology...",
-            responding_to: "Researcher",
-          },
-          {
-            agent: "Synthesizer",
-            role: "Synthesis Agent",
-            message: "Generating comprehensive insights from all findings...",
-          }
-        ],
-        insight_report: "The research reveals significant advances in the field with consistent improvements across multiple metrics.",
-        synthesis: "This analysis demonstrates clear patterns and actionable insights for future research directions.",
-        follow_up_questions: [
-          "What are the long-term implications?",
-          "How does this scale to larger datasets?",
-          "What are the computational requirements?"
-        ]
-      };
+        model,
+        temperature: temperature[0],
+        workflowType,
+      });
       
-      setWorkflowResults(mockResults);
+      setWorkflowResults(results);
       toast({
         title: "Analysis complete",
         description: "Agent collaboration finished successfully",
+      });
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      toast({
+        title: "Analysis failed",
+        description: error instanceof Error ? error.message : "Failed to complete analysis",
+        variant: "destructive",
       });
     } finally {
       setIsAnalyzing(false);
