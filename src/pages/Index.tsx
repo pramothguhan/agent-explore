@@ -1,132 +1,307 @@
 import { Navigation } from "@/components/Navigation";
+import { SessionManager } from "@/components/SessionManager";
+import { ResearchQuery } from "@/components/ResearchQuery";
+import { PaperList } from "@/components/PaperList";
+import { PDFProcessor } from "@/components/PDFProcessor";
+import { VectorStoreQuery } from "@/components/VectorStoreQuery";
 import { AgentCard } from "@/components/AgentCard";
-import { CategoryRow } from "@/components/CategoryRow";
-import { AgentConversation } from "@/components/AgentConversation";
-import { PaperUploadModal } from "@/components/PaperUploadModal";
-import { PaperDetailModal } from "@/components/PaperDetailModal";
-import { CategorySkeleton } from "@/components/PaperSkeleton";
 import { AgentLoadingList } from "@/components/AgentSkeleton";
+import { ResultsView } from "@/components/ResultsView";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
+import { PaperUploadModal } from "@/components/PaperUploadModal";
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/hooks/use-toast";
+import { Rocket } from "lucide-react";
 
-// Mock data
-const mockPapers = [
-  {
-    id: "1",
-    title: "Attention Is All You Need: Transformers for Renewable Energy",
-    authors: ["John Doe", "Jane Smith"],
-    year: "2024",
-    abstract: "Exploring the application of transformer architecture in optimizing renewable energy distribution...",
-  },
-  {
-    id: "2",
-    title: "Deep Reinforcement Learning for Battery Lifecycle Optimization",
-    authors: ["Alice Chen", "Bob Wilson"],
-    year: "2024",
-    abstract: "A novel approach to extending battery life through predictive maintenance using deep RL...",
-  },
-  {
-    id: "3",
-    title: "Agentic AI Systems for Climate Modeling",
-    authors: ["Maria Garcia", "Tom Brown"],
-    year: "2023",
-    abstract: "Multi-agent systems that collaborate to improve climate prediction accuracy...",
-  },
-  {
-    id: "4",
-    title: "Graph Neural Networks for Grid Integration",
-    authors: ["David Lee", "Sarah Johnson"],
-    year: "2024",
-    abstract: "Using GNNs to optimize smart grid performance and energy distribution...",
-  },
-  {
-    id: "5",
-    title: "Predictive Maintenance in Energy Storage Systems",
-    authors: ["Michael Zhang", "Emma Davis"],
-    year: "2023",
-    abstract: "Machine learning approaches to predict and prevent battery system failures...",
-  },
-];
+// Types
+interface Paper {
+  id?: string;
+  arxiv_id?: string;
+  title: string;
+  authors: string[];
+  year?: string;
+  published?: string;
+  primary_category?: string;
+  abstract: string;
+  pdf_url?: string;
+  pdf_path?: string;
+}
 
-const mockMessages = [
-  {
-    id: "1",
-    agent: "researcher" as const,
-    content: "Found common themes: energy efficiency improved 20-30% using AI optimization, predictive maintenance reduced costs by 15%",
-    timestamp: "3:32:37 PM",
-  },
-  {
-    id: "2",
-    agent: "critic" as const,
-    content: "Reviewing findings for gaps and inconsistencies...",
-    timestamp: "3:32:37 PM",
-  },
-  {
-    id: "3",
-    agent: "critic" as const,
-    content: "Question: Sample sizes vary greatly (50-5000). How does this affect reliability? Gap: Limited long-term deployment data (>2 years)",
-    timestamp: "3:32:39 PM",
-  },
-  {
-    id: "4",
-    agent: "synthesizer" as const,
-    content: "Generating collective insights from all findings...",
-    timestamp: "3:32:39 PM",
-  },
-];
+interface Session {
+  session_id: string;
+  topic: string;
+  papers_count: number;
+  chunks_count: number;
+  created_at: string;
+}
 
-const categories = [
-  "AI for Climate Modeling",
-  "Battery Efficiency",
-  "Smart Grid Optimization",
-  "Renewable Energy Storage",
-];
+interface WorkflowResults {
+  query: string;
+  conversation_history: Array<{
+    agent: string;
+    role: string;
+    message: string;
+    responding_to?: string;
+  }>;
+  insight_report?: string;
+  synthesis: string;
+  follow_up_questions: string[];
+}
 
 const Index = () => {
-  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const { toast } = useToast();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [paperDetailOpen, setPaperDetailOpen] = useState(false);
-  const [selectedPaper, setSelectedPaper] = useState<typeof mockPapers[0] | null>(null);
-  const [chatMessage, setChatMessage] = useState("");
   const [isPageLoading, setIsPageLoading] = useState(true);
-  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  
+  // Session state
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  
+  // Papers state
+  const [papers, setPapers] = useState<Paper[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // PDF processing state
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState("");
+  const [papersWithPdfs, setPapersWithPdfs] = useState(0);
+  const [vectorStoreReady, setVectorStoreReady] = useState(false);
+  const [vectorStoreChunks, setVectorStoreChunks] = useState(0);
+  
+  // Agent analysis state
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [workflowResults, setWorkflowResults] = useState<WorkflowResults | null>(null);
+  const [model, setModel] = useState("gpt-4-turbo-preview");
+  const [temperature, setTemperature] = useState([0.7]);
+  const [workflowType, setWorkflowType] = useState("standard");
 
   // Simulate initial page load
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPageLoading(false);
+      // TODO: Load sessions from API
+      // fetchSessions();
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleStartAnalysis = () => {
-    setAnalysisOpen(true);
-    setIsAnalyzing(true);
-    
-    // Simulate analysis completion
-    setTimeout(() => {
-      setIsAnalyzing(false);
-    }, 5000);
-  };
-
-  const handlePaperClick = (id: string) => {
-    const paper = mockPapers.find(p => p.id === id);
-    if (paper) {
-      setSelectedPaper(paper);
-      setPaperDetailOpen(true);
+  // Handler functions
+  const handleSelectSession = (sessionId: string | null) => {
+    if (sessionId === null) {
+      setCurrentSession(null);
+      setPapers([]);
+      setWorkflowResults(null);
+    } else {
+      // TODO: Load session from API
+      const session = sessions.find(s => s.session_id === sessionId);
+      if (session) {
+        setCurrentSession(session);
+        // TODO: Load papers for this session
+      }
     }
   };
 
-  const handleSendMessage = () => {
-    if (chatMessage.trim()) {
-      // Handle chat message
-      setChatMessage("");
+  const handleDeleteSession = async (sessionId: string) => {
+    // TODO: Call API to delete session
+    setSessions(sessions.filter(s => s.session_id !== sessionId));
+    if (currentSession?.session_id === sessionId) {
+      setCurrentSession(null);
+      setPapers([]);
+    }
+    toast({
+      title: "Session deleted",
+      description: "The research session has been removed",
+    });
+  };
+
+  const handleSearch = async (query: string, maxPapers: number) => {
+    setIsSearching(true);
+    try {
+      // TODO: Call FastAPI endpoint /api/papers/fetch-arxiv
+      // const response = await fetch(`${API_BASE_URL}/api/papers/fetch-arxiv`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ query, max_results: maxPapers })
+      // });
+      // const data = await response.json();
+      
+      // Mock data for now
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const mockResults: Paper[] = Array(maxPapers).fill(null).map((_, i) => ({
+        id: `paper-${i}`,
+        arxiv_id: `2024.${String(i).padStart(5, '0')}`,
+        title: `Research Paper ${i + 1}: ${query}`,
+        authors: ['Author A', 'Author B'],
+        published: '2024-01-15',
+        primary_category: 'cs.AI',
+        abstract: `This paper explores ${query} using advanced methods...`,
+        pdf_url: `https://arxiv.org/pdf/2024.${String(i).padStart(5, '0')}`,
+      }));
+      
+      setPapers(mockResults);
+      
+      // Create session if needed
+      if (!currentSession) {
+        const newSession: Session = {
+          session_id: `session-${Date.now()}`,
+          topic: query,
+          papers_count: mockResults.length,
+          chunks_count: 0,
+          created_at: new Date().toISOString(),
+        };
+        setSessions([...sessions, newSession]);
+        setCurrentSession(newSession);
+      }
+      
+      toast({
+        title: "Papers found",
+        description: `Found ${mockResults.length} papers`,
+      });
+    } catch (error) {
+      toast({
+        title: "Search failed",
+        description: "Failed to search papers",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleDownloadPDFs = async () => {
+    setIsProcessing(true);
+    setProgress(0);
+    
+    try {
+      // TODO: Call FastAPI endpoint to download PDFs
+      for (let i = 0; i < papers.length; i++) {
+        setStatusText(`Downloading ${i + 1}/${papers.length}: ${papers[i].title.slice(0, 40)}...`);
+        setProgress(((i + 1) / papers.length) * 100);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Update papers with pdf_path
+      setPapers(papers.map(p => ({ ...p, pdf_path: `/path/to/${p.arxiv_id}.pdf` })));
+      setPapersWithPdfs(papers.length);
+      
+      toast({
+        title: "PDFs downloaded",
+        description: `Downloaded ${papers.length} PDFs`,
+      });
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
+      setStatusText("");
+    }
+  };
+
+  const handleBuildVectorStore = async () => {
+    setIsProcessing(true);
+    setProgress(0);
+    
+    try {
+      // TODO: Call FastAPI endpoint to build vector store
+      setStatusText("Processing PDFs and building embeddings...");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      setProgress(100);
+      
+      setVectorStoreReady(true);
+      setVectorStoreChunks(papers.length * 50); // Mock: ~50 chunks per paper
+      
+      toast({
+        title: "Vector store ready",
+        description: `Created ${papers.length * 50} searchable chunks`,
+      });
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
+      setStatusText("");
+    }
+  };
+
+  const handleVectorQuery = async (query: string, k: number) => {
+    // TODO: Call FastAPI endpoint /api/vector-store/query
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return Array(k).fill(null).map((_, i) => ({
+      text: `Relevant passage ${i + 1} about "${query}"...`,
+      score: 0.9 - (i * 0.1),
+      meta: {
+        paper_title: papers[i % papers.length]?.title || 'Unknown',
+        position: Math.random(),
+        word_count: 150 + Math.floor(Math.random() * 100),
+        has_equations: Math.random() > 0.5,
+        has_citations: Math.random() > 0.7,
+      }
+    }));
+  };
+
+  const handleStartAnalysis = async () => {
+    if (!currentSession || papers.length === 0) {
+      toast({
+        title: "Cannot start analysis",
+        description: "Please search for papers first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      // TODO: Call FastAPI endpoint /api/analysis/category
+      // const response = await fetch(`${API_BASE_URL}/api/analysis/category`, {
+      //   method: 'POST',
+      //   body: JSON.stringify({
+      //     query: currentSession.topic,
+      //     model,
+      //     temperature: temperature[0],
+      //     workflow_type: workflowType
+      //   })
+      // });
+      
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const mockResults: WorkflowResults = {
+        query: currentSession.topic,
+        conversation_history: [
+          {
+            agent: "Researcher",
+            role: "Research Agent",
+            message: "Analyzed papers and found key patterns in the data...",
+          },
+          {
+            agent: "Critic",
+            role: "Critical Analyst",
+            message: "Identified several gaps in the methodology...",
+            responding_to: "Researcher",
+          },
+          {
+            agent: "Synthesizer",
+            role: "Synthesis Agent",
+            message: "Generating comprehensive insights from all findings...",
+          }
+        ],
+        insight_report: "The research reveals significant advances in the field with consistent improvements across multiple metrics.",
+        synthesis: "This analysis demonstrates clear patterns and actionable insights for future research directions.",
+        follow_up_questions: [
+          "What are the long-term implications?",
+          "How does this scale to larger datasets?",
+          "What are the computational requirements?"
+        ]
+      };
+      
+      setWorkflowResults(mockResults);
+      toast({
+        title: "Analysis complete",
+        description: "Agent collaboration finished successfully",
+      });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -138,156 +313,165 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Navigation onAddPapers={() => setUploadOpen(true)} />
 
-      <main className="container px-6 py-8 space-y-12">
+      <main className="container px-6 py-8">
         {/* Hero Section */}
-        <section className="space-y-6 animate-fade-in">
+        <section className="space-y-6 animate-fade-in mb-12">
           <h1 className="text-5xl md:text-6xl font-serif font-semibold text-foreground leading-tight">
-            Multi-Agent Research Platform
+            Research Agent System
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">
-            Leverage AI agents to analyze research papers, identify patterns, and generate collective insights.
-            Browse curated categories and start your analysis journey.
+            AI agents with advanced document processing. Search papers, build vector stores, and leverage multi-agent collaboration for deep research insights.
           </p>
         </section>
 
-        {/* Categories with Papers */}
-        <section className="space-y-8">
-          {isCategoriesLoading ? (
-            <>
-              <CategorySkeleton />
-              <CategorySkeleton />
-              <CategorySkeleton />
-            </>
-          ) : (
-            categories.map((category, index) => (
-              <CategoryRow
-                key={category}
-                title={category}
-                papers={mockPapers}
-                onStartAnalysis={handleStartAnalysis}
-                onPaperClick={handlePaperClick}
-              />
-            ))
-          )}
-        </section>
-      </main>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar */}
+          <aside className="lg:col-span-1 space-y-6">
+            <SessionManager
+              sessions={sessions}
+              currentSession={currentSession}
+              onSelectSession={handleSelectSession}
+              onDeleteSession={handleDeleteSession}
+            />
 
-      {/* Analysis Dialog */}
-      <Dialog open={analysisOpen} onOpenChange={setAnalysisOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Agent Analysis</DialogTitle>
-          </DialogHeader>
-
-          <Tabs defaultValue="agents" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="agents">Agents</TabsTrigger>
-              <TabsTrigger value="conversation">Conversation</TabsTrigger>
-              <TabsTrigger value="insights">Insights</TabsTrigger>
-              <TabsTrigger value="chat">Chat</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="agents" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
-              {isAnalyzing ? (
-                <AgentLoadingList />
-              ) : (
-                <div className="space-y-4">
-                  <AgentCard
-                    name="Researcher"
-                    description="Analyzes papers and extracts key findings"
-                    status="complete"
-                    icon="researcher"
-                  />
-                  <AgentCard
-                    name="Critic"
-                    description="Questions assumptions and identifies gaps"
-                    status="complete"
-                    icon="critic"
-                  />
-                  <AgentCard
-                    name="Synthesizer"
-                    description="Generates collective insights"
-                    status="complete"
-                    icon="synthesizer"
-                  />
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="conversation" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
-              <AgentConversation messages={mockMessages} />
-            </TabsContent>
-
-            <TabsContent value="insights" className="flex-1 overflow-y-auto custom-scrollbar mt-4">
-              <div className="space-y-4 p-4 rounded-lg border border-border bg-card/50">
-                <h3 className="text-xl font-semibold">Collective Insights: AI for Energy Systems</h3>
-                
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="font-semibold text-agent-researcher mb-2">Key Findings</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      AI-driven optimization in renewable energy storage shows consistent efficiency gains across
-                      multiple studies (20-30% improvement). The most significant impact comes from predictive
-                      load balancing, battery lifecycle optimization, and grid integration algorithms.
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-agent-critic mb-2">Research Gaps</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      ⚠️ Critical limitation: Only 2 of 10 papers have data beyond 24 months. Long-term degradation
-                      effects unclear. Economic models often exclude implementation costs ($50K-500K).
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-agent-synthesizer mb-2">Emerging Patterns</h4>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>• Most studies use reinforcement learning with simulation environments</li>
-                      <li>• Results hold from residential (5kW) to utility scale (50MW)</li>
-                      <li>• Benefits appear within 6-12 months of deployment</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="chat" className="flex-1 overflow-hidden flex flex-col mt-4">
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 mb-4">
-                <div className="rounded-lg border border-border bg-card/50 p-4">
-                  <p className="text-sm text-muted-foreground">
-                    Ask questions about the analysis, request clarifications, or explore specific aspects of the research...
-                  </p>
-                </div>
-              </div>
+            {/* Configuration */}
+            <div className="space-y-4 p-6 rounded-lg border border-border bg-card">
+              <h3 className="font-semibold">Configuration</h3>
               
-              <div className="flex gap-2">
-                <Input
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                  placeholder="Ask about the research findings..."
-                  className="flex-1"
-                />
-                <Button onClick={handleSendMessage} size="icon">
-                  <Send className="h-4 w-4" />
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="model">LLM Model</Label>
+                <Select value={model} onValueChange={setModel}>
+                  <SelectTrigger id="model">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gpt-4-turbo-preview">GPT-4 Turbo</SelectItem>
+                    <SelectItem value="gpt-4">GPT-4</SelectItem>
+                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+
+              <div className="space-y-2">
+                <Label>Temperature: {temperature[0].toFixed(1)}</Label>
+                <Slider
+                  value={temperature}
+                  onValueChange={setTemperature}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="workflow">Workflow Type</Label>
+                <Select value={workflowType} onValueChange={setWorkflowType}>
+                  <SelectTrigger id="workflow">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="interactive">Interactive (with refinement)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            <Tabs defaultValue="research" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="research">New Research</TabsTrigger>
+                <TabsTrigger value="processing">PDF Processing</TabsTrigger>
+                <TabsTrigger value="analysis">Agent Analysis</TabsTrigger>
+                <TabsTrigger value="results">Results</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="research" className="space-y-6 mt-6">
+                <ResearchQuery
+                  onSearch={handleSearch}
+                  isSearching={isSearching}
+                  hasSession={currentSession !== null}
+                />
+                <PaperList papers={papers} />
+              </TabsContent>
+
+              <TabsContent value="processing" className="space-y-6 mt-6">
+                {!currentSession ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    Create a session in the "New Research" tab first
+                  </div>
+                ) : (
+                  <>
+                    <PDFProcessor
+                      papersCount={papers.length}
+                      papersWithPdfs={papersWithPdfs}
+                      vectorStoreReady={vectorStoreReady}
+                      vectorStoreChunks={vectorStoreChunks}
+                      onDownloadPDFs={handleDownloadPDFs}
+                      onBuildVectorStore={handleBuildVectorStore}
+                      isProcessing={isProcessing}
+                      progress={progress}
+                      statusText={statusText}
+                    />
+                    <VectorStoreQuery
+                      vectorStoreReady={vectorStoreReady}
+                      onQuery={handleVectorQuery}
+                    />
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="analysis" className="space-y-6 mt-6">
+                {!currentSession || papers.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    Search for papers first to run analysis
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between p-6 rounded-lg border border-border bg-card">
+                      <div>
+                        <h3 className="font-semibold mb-1">Ready to Analyze</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {papers.length} papers loaded • {model} • Temperature: {temperature[0].toFixed(1)}
+                        </p>
+                      </div>
+                      <Button onClick={handleStartAnalysis} disabled={isAnalyzing} size="lg">
+                        {isAnalyzing ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Rocket className="mr-2 h-5 w-5" />
+                            Start Analysis
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {isAnalyzing && <AgentLoadingList />}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="results" className="mt-6">
+                <ResultsView
+                  results={workflowResults}
+                  sessionTopic={currentSession?.topic || ""}
+                  sessionId={currentSession?.session_id || ""}
+                  onNewAnalysis={() => setWorkflowResults(null)}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </main>
 
       {/* Paper Upload Modal */}
       <PaperUploadModal open={uploadOpen} onOpenChange={setUploadOpen} />
-
-      {/* Paper Detail Modal */}
-      <PaperDetailModal 
-        open={paperDetailOpen} 
-        onOpenChange={setPaperDetailOpen}
-        paper={selectedPaper}
-        onStartAnalysis={handleStartAnalysis}
-      />
     </div>
   );
 };
